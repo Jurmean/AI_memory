@@ -159,8 +159,19 @@ class _ReportCard extends StatelessWidget {
   }
 
   String _preview(String content) {
-    if (content.length <= 100) return content;
-    return '${content.substring(0, 100)}…';
+    final plain = content
+        .replaceAll(RegExp(r'```[\s\S]*?```'), '')
+        .replaceAll(RegExp(r'#{1,6}\s*'), '')
+        .replaceAll(RegExp(r'\*{1,3}([^*]+)\*{1,3}'), r'$1')
+        .replaceAll(RegExp(r'`([^`]+)`'), r'$1')
+        .replaceAll(RegExp(r'^>\s*', multiLine: true), '')
+        .replaceAll(RegExp(r'^[-*+]\s+', multiLine: true), '')
+        .replaceAll(RegExp(r'^\d+\.\s+', multiLine: true), '')
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1')
+        .replaceAll(RegExp(r'\n{2,}'), '\n')
+        .trim();
+    if (plain.length <= 120) return plain;
+    return '${plain.substring(0, 120)}…';
   }
 
   @override

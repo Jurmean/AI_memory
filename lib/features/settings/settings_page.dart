@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../llm/llm_client.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/llm_provider.dart';
 import '../../providers/user_profile_provider.dart';
@@ -278,6 +279,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       border: const OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  _LLMTestButton(),
                 ],
               ),
             ),
@@ -418,6 +421,73 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _LLMTestButton extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_LLMTestButton> createState() => _LLMTestButtonState();
+}
+
+class _LLMTestButtonState extends ConsumerState<_LLMTestButton> {
+  bool _testing = false;
+
+  Future<void> _testConnection() async {
+    setState(() => _testing = true);
+    try {
+      final client = ref.read(llmClientProvider);
+      await client.chat([
+        {'role': 'user', 'content': '请回复OK'}
+      ]);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('连接成功，API 可用'),
+            ],
+          ),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is LLMException ? e.message : '连接失败：$e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text(msg)),
+            ],
+          ),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      onPressed: _testing ? null : _testConnection,
+      icon: _testing
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.wifi_tethering),
+      label: Text(_testing ? '测试中…' : '测试连接'),
     );
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/question.dart';
 import '../../data/models/answer_log.dart';
+import 'guidance_chat_page.dart';
+import 'quiz_summary_page.dart';
 
 class ResultPage extends ConsumerWidget {
   const ResultPage({
@@ -115,8 +117,13 @@ class ResultPage extends ConsumerWidget {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('AI伴学功能')),
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => GuidanceChatPage(
+                                question: question,
+                                answerLog: answerLog,
+                              ),
+                            ),
                           );
                         },
                         child: const Text('AI 伴学'),
@@ -127,13 +134,16 @@ class ResultPage extends ConsumerWidget {
                       child: FilledButton(
                         onPressed: () {
                           if (isLastQuestion) {
-                            Navigator.of(context)
-                                .popUntil((route) => route.isFirst);
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const QuizSummaryPage(),
+                              ),
+                            );
                           } else {
                             Navigator.of(context).pop();
                           }
                         },
-                        child: Text(isLastQuestion ? '完成' : '下一题'),
+                        child: Text(isLastQuestion ? '查看总结' : '下一题'),
                       ),
                     ),
                   ],

@@ -30,7 +30,6 @@ class _QuizPageState extends ConsumerState<QuizPage>
   late AnimationController _staggerController;
 
   bool _revealed = false;
-  bool _generatingReport = false;
 
   @override
   void initState() {
@@ -94,7 +93,7 @@ class _QuizPageState extends ConsumerState<QuizPage>
 
   Future<void> _submit() async {
     final idx = _selectedIndex;
-    if (idx == null || _revealed || _generatingReport) return;
+    if (idx == null || _revealed) return;
     final quiz = ref.read(currentQuizProvider);
     final q = quiz.currentQuestion;
     if (q == null) return;
@@ -118,29 +117,28 @@ class _QuizPageState extends ConsumerState<QuizPage>
     if (!mounted) return;
 
     final finished = ref.read(currentQuizProvider).isFinished;
-    if (finished) {
-      setState(() => _generatingReport = true);
-      await Future<void>.delayed(const Duration(milliseconds: 1400));
-      if (mounted) Navigator.of(context).pop();
-      return;
-    }
-
     final AnswerLog lastLog = ref.read(currentQuizProvider).logs.last;
+
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => ResultPage(
           question: q,
           answerLog: lastLog,
-          isLastQuestion: false,
+          isLastQuestion: finished,
         ),
       ),
     );
     if (!mounted) return;
+
+    if (finished) {
+      Navigator.of(context).pop();
+      return;
+    }
+
     _resetQuestionLocalState();
   }
 
   Future<void> _confirmExit() async {
-    if (_generatingReport) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -447,8 +445,7 @@ class _QuizPageState extends ConsumerState<QuizPage>
                           const SizedBox(height: 20),
                           FilledButton(
                             onPressed: (_selectedIndex == null ||
-                                    _revealed ||
-                                    _generatingReport)
+                                    _revealed)
                                 ? null
                                 : _submit,
                             style: FilledButton.styleFrom(
@@ -463,34 +460,6 @@ class _QuizPageState extends ConsumerState<QuizPage>
                 ],
               ),
             ),
-            if (_generatingReport)
-              Positioned.fill(
-                child: Material(
-                  color: scheme.scrim.withValues(alpha: 0.45),
-                  child: Center(
-                    child: Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 28,
-                          vertical: 32,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const CircularProgressIndicator(),
-                            const SizedBox(height: 20),
-                            Text(
-                              '正在生成报告…',
-                              style: theme.textTheme.titleMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
