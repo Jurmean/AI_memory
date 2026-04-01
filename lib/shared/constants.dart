@@ -27,7 +27,7 @@ class AppConstants {
   static const double fsrsC = -0.5;
 
   // Review
-  static const int diagnosisTriggerCount = 10;
+  static const int diagnosisTriggerCount = 1;
   static const int maxQuizSize = 10;
   static const int maxReviewQueueSize = 10;
 

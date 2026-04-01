@@ -153,6 +153,11 @@ class DiagnosisNotifier extends Notifier<DiagnosisState> {
     }
   }
 
+  void clearLatestReport() {
+    state = state.copyWith(isGenerating: false, error: null);
+    state = DiagnosisState(reports: state.reports);
+  }
+
   Future<void> refresh() async {
     await _loadReports();
   }

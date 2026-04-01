@@ -59,6 +59,7 @@ class CurrentQuizNotifier extends Notifier<QuizState> {
   QuizState build() => const QuizState();
 
   Future<void> startQuiz(List<Question> allQuestions) async {
+    ref.read(diagnosisProvider.notifier).clearLatestReport();
     final db = ref.read(databaseProvider);
     final capped = allQuestions.take(AppConstants.maxQuizSize).toList();
     final session = ReviewSession(
