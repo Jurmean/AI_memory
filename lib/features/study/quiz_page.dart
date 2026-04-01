@@ -131,7 +131,9 @@ class _QuizPageState extends ConsumerState<QuizPage>
     if (!mounted) return;
 
     if (finished) {
-      Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
       return;
     }
 
