@@ -2,7 +2,6 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/question.dart';
 import '../models/knowledge_point.dart';
-import '../models/knowledge_edge.dart';
 import '../models/answer_log.dart';
 import '../models/review_state.dart';
 import '../models/review_session.dart';
@@ -48,16 +47,6 @@ class DatabaseHelper {
         description TEXT,
         level INTEGER DEFAULT 0,
         subject_id TEXT
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE knowledge_edges (
-        from_id TEXT NOT NULL,
-        to_id TEXT NOT NULL,
-        relation_type TEXT DEFAULT 'related',
-        weight REAL DEFAULT 1.0,
-        PRIMARY KEY (from_id, to_id)
       )
     ''');
 
@@ -167,17 +156,6 @@ class DatabaseHelper {
     ];
     for (final kp in kps) {
       await db.insert('knowledge_points', kp);
-    }
-
-    // Knowledge edges
-    final edges = [
-      {'from_id': 'kp_redox', 'to_id': 'kp_electrochem', 'relation_type': 'prerequisite', 'weight': 0.9},
-      {'from_id': 'kp_ionic', 'to_id': 'kp_redox', 'relation_type': 'related', 'weight': 0.7},
-      {'from_id': 'kp_ionic', 'to_id': 'kp_equilibrium', 'relation_type': 'related', 'weight': 0.6},
-      {'from_id': 'kp_periodic', 'to_id': 'kp_redox', 'relation_type': 'prerequisite', 'weight': 0.5},
-    ];
-    for (final e in edges) {
-      await db.insert('knowledge_edges', e);
     }
 
     // Sample questions with distractor analysis
@@ -383,24 +361,11 @@ class DatabaseHelper {
     return result;
   }
 
-  // ─── KnowledgeEdge ───
-
   Future<List<String>> getKnowledgePointIdsForQuestion(String questionId) async {
     final db = await database;
     final maps = await db.query('question_kp',
         where: 'question_id = ?', whereArgs: [questionId]);
     return maps.map((m) => m['kp_id'] as String).toList();
-  }
-
-  Future<List<KnowledgeEdge>> getAllEdges() async {
-    final db = await database;
-    final maps = await db.query('knowledge_edges');
-    return maps.map(KnowledgeEdge.fromDbMap).toList();
-  }
-
-  Future<void> insertEdge(KnowledgeEdge edge) async {
-    final db = await database;
-    await db.insert('knowledge_edges', edge.toDbMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   // ─── QuestionKP ───
@@ -572,7 +537,6 @@ class DatabaseHelper {
     return {
       'questions': await db.query('questions'),
       'knowledge_points': await db.query('knowledge_points'),
-      'knowledge_edges': await db.query('knowledge_edges'),
       'question_kp': await db.query('question_kp'),
       'answer_logs': await db.query('answer_logs'),
       'review_states': await db.query('review_states'),
@@ -587,7 +551,7 @@ class DatabaseHelper {
     final db = await database;
     await db.transaction((txn) async {
       for (final table in ['chat_messages', 'diagnostic_reports', 'answer_logs', 'review_states',
-          'review_sessions', 'question_kp', 'knowledge_edges', 'knowledge_points', 'questions', 'user_profile']) {
+          'review_sessions', 'question_kp', 'knowledge_points', 'questions', 'user_profile']) {
         await txn.delete(table);
       }
       for (final entry in data.entries) {

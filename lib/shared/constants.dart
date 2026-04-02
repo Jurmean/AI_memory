@@ -31,10 +31,6 @@ class AppConstants {
   static const int maxQuizSize = 10;
   static const int maxReviewQueueSize = 10;
 
-  // Knowledge graph
-  static const int kgMaxBfsDepth = 2;
-  static const double kgAlpha = 0.3;
-
   // Scheduler weights
   static const double schedulerAlpha = 0.5;
   static const double schedulerBeta = 0.3;

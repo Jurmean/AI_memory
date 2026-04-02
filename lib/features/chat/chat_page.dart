@@ -390,6 +390,9 @@ class _MessageBubble extends StatelessWidget {
       );
     }
 
+    final parsed = _extractThinking(message.content);
+    final hasThinking = parsed.thinking.isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Align(
@@ -401,6 +404,29 @@ class _MessageBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (hasThinking)
+                Theme(
+                  data: theme.copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding:
+                        const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                    title: Text('思考过程',
+                        style: theme.textTheme.titleSmall
+                            ?.copyWith(color: colorScheme.onSurfaceVariant)),
+                    children: [
+                      SelectableText(
+                        parsed.thinking,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.85),
+                          fontStyle: FontStyle.italic,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               DecoratedBox(
                 decoration: BoxDecoration(
                   color: assistantBg,
@@ -417,7 +443,7 @@ class _MessageBubble extends StatelessWidget {
                     vertical: 10,
                   ),
                   child: MarkdownBody(
-                    data: message.content,
+                    data: parsed.content,
                     selectable: true,
                     styleSheet: MarkdownStyleSheet(
                       p: theme.textTheme.bodyLarge,
@@ -443,6 +469,21 @@ class _MessageBubble extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ThinkParsed {
+  final String thinking;
+  final String content;
+  const _ThinkParsed({required this.thinking, required this.content});
+}
+
+_ThinkParsed _extractThinking(String text) {
+  final re = RegExp(r'<think>([\s\S]*?)</think>', multiLine: true);
+  final match = re.firstMatch(text);
+  if (match == null) return _ThinkParsed(thinking: '', content: text.trim());
+  final thinking = match.group(1)?.trim() ?? '';
+  final content = text.replaceFirst(re, '').trim();
+  return _ThinkParsed(thinking: thinking, content: content);
 }
 
 String _formatTime(DateTime t) {

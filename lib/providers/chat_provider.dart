@@ -102,16 +102,46 @@ class ChatNotifier extends Notifier<ChatState> {
 
     final contentBuf = StringBuffer();
     final thinkBuf = StringBuffer();
+    final backend = ref.read(backendClientProvider);
 
     try {
-      await for (final chunk in _service!.sendMessageStream(text)) {
-        if (chunk.content.isNotEmpty) {
-          contentBuf.write(chunk.content);
-          state = state.copyWith(streamingContent: contentBuf.toString());
-        }
-        if (chunk.thinkingContent != null) {
-          thinkBuf.write(chunk.thinkingContent);
+      if (backend != null) {
+        final result = await backend.ragQuery(question: text);
+        final raw = (result['answer'] ?? '') as String;
+        final parsed = _extractThinking(raw);
+        contentBuf.write(parsed.content);
+        if (parsed.thinking.isNotEmpty) {
+          thinkBuf.write(parsed.thinking);
           state = state.copyWith(thinkingContent: thinkBuf.toString());
+        }
+
+        final sources = result['sources'] as List?;
+        if (sources != null && sources.isNotEmpty) {
+          contentBuf.write('\n\n---\n**参考来源：**\n');
+          for (final src in sources) {
+            final s = src as Map<String, dynamic>;
+            final title = s['title'] ?? '';
+            final url = s['url'];
+            final type = s['source_type'] == 'local' ? '📚 本地' : '🌐 网络';
+            if (url != null && url.toString().isNotEmpty) {
+              contentBuf.write('- $type [$title]($url)\n');
+            } else {
+              contentBuf.write('- $type $title\n');
+            }
+          }
+        }
+        state = state.copyWith(streamingContent: contentBuf.toString());
+      } else {
+        // No backend → direct LLM streaming
+        await for (final chunk in _service!.sendMessageStream(text)) {
+          if (chunk.content.isNotEmpty) {
+            contentBuf.write(chunk.content);
+            state = state.copyWith(streamingContent: contentBuf.toString());
+          }
+          if (chunk.thinkingContent != null) {
+            thinkBuf.write(chunk.thinkingContent);
+            state = state.copyWith(thinkingContent: thinkBuf.toString());
+          }
         }
       }
 
@@ -141,3 +171,18 @@ class ChatNotifier extends Notifier<ChatState> {
 
 final chatProvider =
     NotifierProvider<ChatNotifier, ChatState>(ChatNotifier.new);
+
+class _ThinkParsed {
+  final String thinking;
+  final String content;
+  const _ThinkParsed({required this.thinking, required this.content});
+}
+
+_ThinkParsed _extractThinking(String text) {
+  final re = RegExp(r'<think>([\s\S]*?)</think>', multiLine: true);
+  final match = re.firstMatch(text);
+  if (match == null) return _ThinkParsed(thinking: '', content: text.trim());
+  final thinking = match.group(1)?.trim() ?? '';
+  final content = text.replaceFirst(re, '').trim();
+  return _ThinkParsed(thinking: thinking, content: content);
+}

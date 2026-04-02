@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/question.dart';
 import '../data/models/review_state.dart';
 import '../core/algorithms/scheduler.dart';
-import '../core/knowledge_graph/graph_engine.dart';
 import 'database_provider.dart';
 import 'user_profile_provider.dart';
 
@@ -31,12 +30,7 @@ class ReviewQueueNotifier extends AsyncNotifier<List<QueueItem>> {
     final reviews = await db.getAllReviewStates();
     if (reviews.isEmpty) return [];
 
-    final edges = await db.getAllEdges();
     final scheduler = const ReviewScheduler();
-
-    final graph = KnowledgeGraphEngine();
-    graph.loadEdges(edges);
-
     final allQuestions = await db.getAllQuestions();
 
     final items = <QueueItem>[];

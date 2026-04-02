@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../llm/llm_client.dart';
+import '../llm/backend_client.dart';
 import '../shared/constants.dart';
 
 class LLMSettings {
@@ -11,6 +12,7 @@ class LLMSettings {
   final String customQuestionPrompt;
   final String customDiagnosisPrompt;
   final bool showConfidenceRating;
+  final String backendUrl;
 
   const LLMSettings({
     this.apiKey = '',
@@ -20,6 +22,7 @@ class LLMSettings {
     this.customQuestionPrompt = '',
     this.customDiagnosisPrompt = '',
     this.showConfidenceRating = true,
+    this.backendUrl = '',
   });
 
   LLMSettings copyWith({
@@ -30,6 +33,7 @@ class LLMSettings {
     String? customQuestionPrompt,
     String? customDiagnosisPrompt,
     bool? showConfidenceRating,
+    String? backendUrl,
   }) =>
       LLMSettings(
         apiKey: apiKey ?? this.apiKey,
@@ -39,6 +43,7 @@ class LLMSettings {
         customQuestionPrompt: customQuestionPrompt ?? this.customQuestionPrompt,
         customDiagnosisPrompt: customDiagnosisPrompt ?? this.customDiagnosisPrompt,
         showConfidenceRating: showConfidenceRating ?? this.showConfidenceRating,
+        backendUrl: backendUrl ?? this.backendUrl,
       );
 
   String get effectiveApiKey =>
@@ -47,6 +52,7 @@ class LLMSettings {
       baseUrl.isNotEmpty ? baseUrl : AppConstants.defaultBaseUrl;
   String get effectiveModel =>
       model.isNotEmpty ? model : AppConstants.defaultModel;
+  bool get hasBackend => backendUrl.isNotEmpty;
 }
 
 class LLMSettingsNotifier extends Notifier<LLMSettings> {
@@ -66,6 +72,7 @@ class LLMSettingsNotifier extends Notifier<LLMSettings> {
       customQuestionPrompt: prefs.getString('llm_custom_question_prompt') ?? '',
       customDiagnosisPrompt: prefs.getString('llm_custom_diagnosis_prompt') ?? '',
       showConfidenceRating: prefs.getBool('show_confidence_rating') ?? true,
+      backendUrl: prefs.getString('backend_url') ?? '',
     );
   }
 
@@ -77,6 +84,7 @@ class LLMSettingsNotifier extends Notifier<LLMSettings> {
     String? customQuestionPrompt,
     String? customDiagnosisPrompt,
     bool? showConfidenceRating,
+    String? backendUrl,
   }) async {
     state = state.copyWith(
       apiKey: apiKey,
@@ -86,6 +94,7 @@ class LLMSettingsNotifier extends Notifier<LLMSettings> {
       customQuestionPrompt: customQuestionPrompt,
       customDiagnosisPrompt: customDiagnosisPrompt,
       showConfidenceRating: showConfidenceRating,
+      backendUrl: backendUrl,
     );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('llm_api_key', state.apiKey);
@@ -95,6 +104,7 @@ class LLMSettingsNotifier extends Notifier<LLMSettings> {
     await prefs.setString('llm_custom_question_prompt', state.customQuestionPrompt);
     await prefs.setString('llm_custom_diagnosis_prompt', state.customDiagnosisPrompt);
     await prefs.setBool('show_confidence_rating', state.showConfidenceRating);
+    await prefs.setString('backend_url', state.backendUrl);
   }
 }
 
@@ -108,4 +118,10 @@ final llmClientProvider = Provider<LLMClient>((ref) {
     baseUrl: settings.effectiveBaseUrl,
     model: settings.effectiveModel,
   );
+});
+
+final backendClientProvider = Provider<BackendClient?>((ref) {
+  final settings = ref.watch(llmSettingsProvider);
+  if (!settings.hasBackend) return null;
+  return BackendClient(backendUrl: settings.backendUrl);
 });

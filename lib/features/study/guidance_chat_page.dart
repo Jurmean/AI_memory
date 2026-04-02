@@ -97,22 +97,39 @@ class _GuidanceChatPageState extends ConsumerState<GuidanceChatPage>
       _thinkingContent = null;
     });
 
-    final client = ref.read(llmClientProvider);
     final contentBuf = StringBuffer();
     final thinkBuf = StringBuffer();
+    final backend = ref.read(backendClientProvider);
 
     try {
-      await for (final chunk in client.chatStream(
-        messages,
-        systemPrompt: '你是一位耐心的学习辅导老师。请用简明清晰的方式讲解题目，帮助学生理解知识点。',
-      )) {
-        if (chunk.content.isNotEmpty) {
-          contentBuf.write(chunk.content);
-          setState(() => _streamingContent = contentBuf.toString());
-        }
-        if (chunk.thinkingContent != null) {
-          thinkBuf.write(chunk.thinkingContent);
+      if (backend != null) {
+        final lastMsg = messages.last['content'] as String? ?? '';
+        final result = await backend.ragQuery(
+          question: lastMsg,
+          context: '学习辅导场景',
+        );
+        final raw = (result['answer'] ?? '') as String;
+        final parsed = _extractThinking(raw);
+        contentBuf.write(parsed.content);
+        if (parsed.thinking.isNotEmpty) {
+          thinkBuf.write(parsed.thinking);
           setState(() => _thinkingContent = thinkBuf.toString());
+        }
+        setState(() => _streamingContent = contentBuf.toString());
+      } else {
+        final client = ref.read(llmClientProvider);
+        await for (final chunk in client.chatStream(
+          messages,
+          systemPrompt: '你是一位耐心的学习辅导老师。请用简明清晰的方式讲解题目，帮助学生理解知识点。',
+        )) {
+          if (chunk.content.isNotEmpty) {
+            contentBuf.write(chunk.content);
+            setState(() => _streamingContent = contentBuf.toString());
+          }
+          if (chunk.thinkingContent != null) {
+            thinkBuf.write(chunk.thinkingContent);
+            setState(() => _thinkingContent = thinkBuf.toString());
+          }
         }
       }
 
@@ -376,4 +393,19 @@ class _GuidanceMsg {
   final String role;
   final String content;
   const _GuidanceMsg({required this.role, required this.content});
+}
+
+class _ThinkParsed {
+  final String thinking;
+  final String content;
+  const _ThinkParsed({required this.thinking, required this.content});
+}
+
+_ThinkParsed _extractThinking(String text) {
+  final re = RegExp(r'<think>([\s\S]*?)</think>', multiLine: true);
+  final match = re.firstMatch(text);
+  if (match == null) return _ThinkParsed(thinking: '', content: text.trim());
+  final thinking = match.group(1)?.trim() ?? '';
+  final content = text.replaceFirst(re, '').trim();
+  return _ThinkParsed(thinking: thinking, content: content);
 }

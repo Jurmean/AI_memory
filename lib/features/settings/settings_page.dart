@@ -8,6 +8,7 @@ import '../../providers/database_provider.dart';
 import '../../providers/llm_provider.dart';
 import '../../providers/user_profile_provider.dart';
 import '../../shared/constants.dart';
+import '../knowledge_base/knowledge_base_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -23,10 +24,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late final TextEditingController _systemPromptController;
   late final TextEditingController _questionPromptController;
   late final TextEditingController _diagnosisPromptController;
+  late final TextEditingController _backendUrlController;
 
   late final FocusNode _baseUrlFocus;
   late final FocusNode _modelFocus;
   late final FocusNode _apiKeyFocus;
+  late final FocusNode _backendUrlFocus;
 
   Timer? _debounceSystem;
   Timer? _debounceQuestion;
@@ -59,6 +62,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     if (_diagnosisPromptController.text != s.customDiagnosisPrompt) {
       _diagnosisPromptController.text = s.customDiagnosisPrompt;
     }
+    if (_backendUrlController.text != s.backendUrl) {
+      _backendUrlController.text = s.backendUrl;
+    }
   }
 
   void _schedulePromptSave(
@@ -84,10 +90,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _systemPromptController = TextEditingController();
     _questionPromptController = TextEditingController();
     _diagnosisPromptController = TextEditingController();
+    _backendUrlController = TextEditingController();
 
     _baseUrlFocus = FocusNode();
     _modelFocus = FocusNode();
     _apiKeyFocus = FocusNode();
+    _backendUrlFocus = FocusNode();
+    _backendUrlFocus.addListener(() {
+      if (!_backendUrlFocus.hasFocus) {
+        ref.read(llmSettingsProvider.notifier).updateSettings(
+              backendUrl: _backendUrlController.text.trim(),
+            );
+      }
+    });
 
     void attachUrlSave(FocusNode n, VoidCallback save) {
       n.addListener(() {
@@ -128,9 +143,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _systemPromptController.dispose();
     _questionPromptController.dispose();
     _diagnosisPromptController.dispose();
+    _backendUrlController.dispose();
     _baseUrlFocus.dispose();
     _modelFocus.dispose();
     _apiKeyFocus.dispose();
+    _backendUrlFocus.dispose();
     super.dispose();
   }
 
@@ -281,6 +298,49 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                   const SizedBox(height: 16),
                   _LLMTestButton(),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SectionLabel(text: '后端服务', colorScheme: cs, textTheme: theme.textTheme),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '配置 FastAPI 后端后可启用联网 RAG 和本地知识库检索。留空则直连 LLM。',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _backendUrlController,
+                    focusNode: _backendUrlFocus,
+                    decoration: const InputDecoration(
+                      labelText: '后端 URL',
+                      hintText: 'http://localhost:8000',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _BackendTestButton(),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const KnowledgeBasePage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.menu_book_outlined),
+                    label: const Text('管理本地知识库'),
+                  ),
                 ],
               ),
             ),
@@ -488,6 +548,79 @@ class _LLMTestButtonState extends ConsumerState<_LLMTestButton> {
             )
           : const Icon(Icons.wifi_tethering),
       label: Text(_testing ? '测试中…' : '测试连接'),
+    );
+  }
+}
+
+class _BackendTestButton extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_BackendTestButton> createState() => _BackendTestButtonState();
+}
+
+class _BackendTestButtonState extends ConsumerState<_BackendTestButton> {
+  bool _testing = false;
+
+  Future<void> _test() async {
+    final backend = ref.read(backendClientProvider);
+    if (backend == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先填写后端 URL')),
+      );
+      return;
+    }
+    setState(() => _testing = true);
+    try {
+      final ok = await backend.healthCheck();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                ok ? Icons.check_circle : Icons.error_outline,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(ok ? '后端连接成功' : '后端无响应'),
+            ],
+          ),
+          backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text('后端连接失败：$e')),
+            ],
+          ),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      onPressed: _testing ? null : _test,
+      icon: _testing
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.cloud_outlined),
+      label: Text(_testing ? '测试中…' : '测试后端连接'),
     );
   }
 }
