@@ -1,12 +1,19 @@
 class QuestionStructurePrompt {
   const QuestionStructurePrompt._();
 
-  static String buildStructurePrompt(String rawText,
-      {String? profileContext, String? customPrompt}) {
+  static String buildStructurePrompt(
+    String rawText, {
+    String? profileContext,
+    String? customPrompt,
+    List<String> existingKnowledgePoints = const [],
+  }) {
     final base = customPrompt?.isNotEmpty == true ? customPrompt! : _defaultPrompt;
+    final existingKpSection = existingKnowledgePoints.isNotEmpty
+        ? '\n## 已有知识点库（优先复用，不要重复创建）\n${existingKnowledgePoints.join('、')}\n'
+        : '';
     return '''${profileContext != null ? '$profileContext\n\n' : ''}## 任务
 $base
-
+$existingKpSection
 ## 用户输入的原始文本
 $rawText
 
@@ -35,7 +42,10 @@ $rawText
 - correctIndex 是正确选项的索引（0-3）
 - distractorAnalysis 只分析错误选项（不包含正确选项）
 - attractiveness 范围 [0, 1]，表示该错误选项的干扰吸引度
-- 确保生成的题目准确、选项合理、解析详尽''';
+- 确保生成的题目准确、选项合理、解析详尽
+- 知识点命名要具有概括性，粒度对标教材章节级别（如"有机化学反应类型"而非"苯的亲电取代反应中卤代反应的区域选择性"）
+- 如果上方"已有知识点库"中有可涵盖的知识点，必须直接复用该名称，不要创建新的细分知识点
+- 遵循奥卡姆剃刀原则：每题知识点不超过2-3个，能用1个概括的就不要拆成多个''';
   }
 
   static const String _defaultPrompt =

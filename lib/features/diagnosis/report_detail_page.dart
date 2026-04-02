@@ -58,6 +58,20 @@ Color _abilityColor(String level) {
   }
 }
 
+bool _isStructuredEmpty(Map<String, dynamic>? data) {
+  if (data == null) return true;
+  final score = _asDouble(data['overallScore']);
+  final ability = data['abilityLevel']?.toString() ?? '';
+  final strengths = _stringList(data['strengths']);
+  final weakAreas = _weakAreaEntries(data);
+  final focus = _stringList(data['suggestedFocus']);
+  return score == null &&
+      ability.isEmpty &&
+      strengths.isEmpty &&
+      weakAreas.isEmpty &&
+      focus.isEmpty;
+}
+
 String _truncateLabel(String s, int maxLen) {
   if (s.length <= maxLen) return s;
   return '${s.substring(0, maxLen)}…';
@@ -261,10 +275,29 @@ class ReportDetailPage extends ConsumerWidget {
                     ),
                   ),
                 ),
+              // Collapsible full report text
+              if (report.reportContent.trim().isNotEmpty)
+                Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  clipBehavior: Clip.antiAlias,
+                  child: ExpansionTile(
+                    leading: Icon(Icons.article_outlined,
+                        color: cs.onSurfaceVariant, size: 22),
+                    title: Text('查看完整报告',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      MarkdownBody(
+                          data: _stripJsonFencedBlocks(report.reportContent)),
+                    ],
+                  ),
+                ),
             ],
 
-            // Fallback: raw markdown only when no structured data
-            if (!hasStructuredData)
+            // Fallback: raw markdown when no structured data or all structured fields empty
+            if (!hasStructuredData || _isStructuredEmpty(data))
               Card(
                 margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 child: Padding(

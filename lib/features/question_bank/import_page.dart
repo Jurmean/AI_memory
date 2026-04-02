@@ -104,6 +104,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     final custom = ref.read(llmSettingsProvider).customQuestionPrompt;
     final client = ref.read(llmClientProvider);
     final service = QuestionStructureService(client);
+    final db = ref.read(databaseProvider);
+    final existingKps = await db.getAllKnowledgePoints();
+    final existingKpNames = existingKps.map((kp) => kp.name).toList();
 
     try {
       final result = await service
@@ -111,6 +114,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
             raw,
             profileContext: profileContext,
             customPrompt: custom.isEmpty ? null : custom,
+            existingKnowledgePoints: existingKpNames,
           )
           .timeout(
             const Duration(minutes: 3),

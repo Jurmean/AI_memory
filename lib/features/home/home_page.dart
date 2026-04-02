@@ -770,6 +770,22 @@ class _PredictedThetaChart extends StatelessWidget {
               LineChartData(
                 minY: minY - pad,
                 maxY: maxY + pad,
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((spot) {
+                        return LineTooltipItem(
+                          'D${spot.x.toInt()}  θ=${spot.y.toStringAsFixed(2)}',
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
@@ -788,9 +804,9 @@ class _PredictedThetaChart extends StatelessWidget {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 36,
+                      reservedSize: 44,
                       getTitlesWidget: (v, m) => Text(
-                        v.toStringAsFixed(1),
+                        v.toStringAsFixed(2),
                         style: TextStyle(
                           fontSize: 10,
                           color: cs.onSurfaceVariant,

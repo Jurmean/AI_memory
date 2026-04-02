@@ -103,7 +103,7 @@ class _AbilityDetailBody extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    effective.toStringAsFixed(3),
+                    effective.toStringAsFixed(2),
                     style: theme.textTheme.displaySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -197,20 +197,16 @@ class _AbilityDetailBody extends StatelessWidget {
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              reservedSize: 44,
+                              reservedSize: 48,
                               getTitlesWidget: (value, meta) {
-                                return Text(
-                                  value.toStringAsFixed(2),
-                                  style: theme.textTheme.bodySmall,
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: Text(
+                                    value.toStringAsFixed(2),
+                                    style: theme.textTheme.bodySmall,
+                                  ),
                                 );
                               },
-                            ),
-                            axisNameWidget: Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                '数值',
-                                style: theme.textTheme.labelSmall,
-                              ),
                             ),
                           ),
                           topTitles: const AxisTitles(
@@ -249,7 +245,7 @@ class _AbilityDetailBody extends StatelessWidget {
                               return touchedSpots.map((s) {
                                 final label = s.barIndex == 0 ? 'θ' : 'R';
                                 return LineTooltipItem(
-                                  '$label: ${s.y.toStringAsFixed(3)}',
+                                  '$label: ${s.y.toStringAsFixed(2)}',
                                   theme.textTheme.bodySmall!.copyWith(
                                     color: theme.colorScheme.onInverseSurface,
                                   ),

@@ -23,10 +23,18 @@ class QuestionStructureService {
 
   const QuestionStructureService(this.client);
 
-  Future<StructureResult> structurizeText(String rawText,
-      {String? profileContext, String? customPrompt}) async {
-    final prompt = QuestionStructurePrompt.buildStructurePrompt(rawText,
-        profileContext: profileContext, customPrompt: customPrompt);
+  Future<StructureResult> structurizeText(
+    String rawText, {
+    String? profileContext,
+    String? customPrompt,
+    List<String> existingKnowledgePoints = const [],
+  }) async {
+    final prompt = QuestionStructurePrompt.buildStructurePrompt(
+      rawText,
+      profileContext: profileContext,
+      customPrompt: customPrompt,
+      existingKnowledgePoints: existingKnowledgePoints,
+    );
 
     final response = await client.chat([
       {'role': 'user', 'content': prompt}

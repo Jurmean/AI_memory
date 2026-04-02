@@ -14,7 +14,7 @@ class DiagnosisPrompt {
 
 ## 本轮答题数据
 - 共$totalQuestions题，答对$correctCount题，正确率${totalQuestions > 0 ? (correctCount / totalQuestions * 100).toStringAsFixed(0) : 0}%
-- 当前能力值θ=$theta
+- 当前能力值θ=${theta.toStringAsFixed(2)}
 
 ## 各题详情
 ${questionDetails.map((q) => '- ${q['stem']}：${q['correct'] ? "✓" : "✗"} | 用时${q['time']}s | 信心${q['confidence']}').join('\n')}
@@ -32,7 +32,12 @@ $base
   "suggestedFocus": ["建议重点复习的方向"],
   "content": "详细的诊断分析文字（Markdown格式）"
 }
-```''';
+```
+
+注意：
+- overallScore 和 weakAreas 中的 score 必须是整数，不要带小数
+- content 字段必须包含详尽的分析文字
+- 所有字段都必须填写，不能为空''';
   }
 
   static String buildOverallDiagnosisPrompt({
@@ -60,7 +65,22 @@ $kpStr
 ## 你的任务
 $base
 
-请用JSON格式输出（外面包裹Markdown代码块），结构同答题组报告。''';
+请用以下JSON格式输出（外面包裹Markdown代码块）：
+```json
+{
+  "overallScore": 0-100的综合得分,
+  "abilityLevel": "优秀/良好/中等/需加强",
+  "strengths": ["掌握较好的知识点"],
+  "weakAreas": [{"name": "薄弱知识点", "score": 0-100}],
+  "suggestedFocus": ["建议重点复习的方向"],
+  "content": "详细的诊断分析文字（Markdown格式），包含整体评估、各知识点分析、学习趋势和具体改进建议"
+}
+```
+
+注意：
+- overallScore 和 weakAreas 中的 score 必须是整数，不要带小数
+- content 字段必须包含详尽的分析文字，不少于200字
+- 所有字段都必须填写，不能为空''';
   }
 
   static const String _defaultSessionPrompt =
