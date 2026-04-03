@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../llm/llm_client.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/llm_provider.dart';
+import '../../data/models/user_profile.dart';
 import '../../providers/user_profile_provider.dart';
 import '../../shared/constants.dart';
 import '../knowledge_base/knowledge_base_page.dart';
@@ -246,6 +247,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               }
                             },
                           ),
+                          const SizedBox(height: 16),
+                          _ProfileSummarySection(profile: profile),
                         ],
                       );
                     },
@@ -646,6 +649,205 @@ class _SectionLabel extends StatelessWidget {
           color: colorScheme.primary,
           fontWeight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+}
+
+class _ProfileSummarySection extends StatelessWidget {
+  const _ProfileSummarySection({required this.profile});
+
+  final UserProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    if (!profile.hasProfileData) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.auto_awesome, size: 20, color: cs.onSurfaceVariant),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '完成答题后自动生成学习画像',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: cs.onSurfaceVariant),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final trendIcon = switch (profile.learningTrend) {
+      '上升' => Icons.trending_up,
+      '下降' => Icons.trending_down,
+      '平稳' => Icons.trending_flat,
+      _ => Icons.remove,
+    };
+    final trendColor = switch (profile.learningTrend) {
+      '上升' => Colors.green.shade700,
+      '下降' => Colors.red.shade700,
+      '平稳' => Colors.orange.shade700,
+      _ => cs.onSurfaceVariant,
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.psychology, size: 20, color: cs.primary),
+              const SizedBox(width: 8),
+              Text('AI 学习画像',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const Spacer(),
+              if (profile.lastProfileUpdate != null)
+                Text(
+                  '更新于 ${_formatDate(profile.lastProfileUpdate!)}',
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: cs.onSurfaceVariant),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              _InfoChip(
+                icon: Icons.bar_chart,
+                label: profile.abilityLevel,
+                color: cs.primary,
+              ),
+              const SizedBox(width: 8),
+              _InfoChip(
+                icon: trendIcon,
+                label: '趋势${profile.learningTrend}',
+                color: trendColor,
+              ),
+            ],
+          ),
+
+          if (profile.strengths.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text('优势知识点',
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: cs.onSurfaceVariant)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: profile.strengths
+                  .map((s) => Chip(
+                        label: Text(s),
+                        labelStyle: theme.textTheme.labelSmall,
+                        backgroundColor: Colors.green.shade50,
+                        side: BorderSide(color: Colors.green.shade200),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      ))
+                  .toList(),
+            ),
+          ],
+
+          if (profile.weakAreas.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text('薄弱知识点',
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: cs.onSurfaceVariant)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: profile.weakAreas
+                  .map((w) => Chip(
+                        label: Text('${w['name']}  ${w['score']}分'),
+                        labelStyle: theme.textTheme.labelSmall,
+                        backgroundColor: Colors.orange.shade50,
+                        side: BorderSide(color: Colors.orange.shade200),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      ))
+                  .toList(),
+            ),
+          ],
+
+          if (profile.suggestedFocus.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text('建议复习方向',
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: cs.onSurfaceVariant)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: profile.suggestedFocus
+                  .map((s) => Chip(
+                        avatar: Icon(Icons.lightbulb_outline,
+                            size: 16, color: cs.primary),
+                        label: Text(s),
+                        labelStyle: theme.textTheme.labelSmall,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      ))
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _formatDate(DateTime dt) {
+    return '${dt.month}/${dt.day} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+        ],
       ),
     );
   }

@@ -48,6 +48,27 @@ class UserProfileNotifier extends AsyncNotifier<UserProfile> {
     await db.updateUserProfile(updated);
     state = AsyncData(updated);
   }
+
+  Future<void> updateFromReport({
+    required String abilityLevel,
+    required String strengthsJson,
+    required String weakAreasJson,
+    required String suggestedFocusJson,
+    required String learningTrend,
+  }) async {
+    final db = ref.read(databaseProvider);
+    final current = state.value ?? const UserProfile();
+    final updated = current.copyWith(
+      abilityLevel: abilityLevel,
+      strengthsJson: strengthsJson,
+      weakAreasJson: weakAreasJson,
+      suggestedFocusJson: suggestedFocusJson,
+      learningTrend: learningTrend,
+      lastProfileUpdate: DateTime.now(),
+    );
+    await db.updateUserProfile(updated);
+    state = AsyncData(updated);
+  }
 }
 
 final userProfileProvider =

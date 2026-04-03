@@ -49,20 +49,22 @@ App 可**独立运行**（直连 LLM API），也可配合后端获得 RAG 增�
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| 移动端框架 | Flutter (Dart) |
-| 目标平台 | Android |
-| 本地数据库 | SQLite via `sqflite` |
-| 状态管理 | `flutter_riverpod` (Riverpod 3.x) |
-| LLM | OpenAI 兼容 API（默认 MiniMax `MiniMax-M2.7`） |
-| HTTP 客户端 | `dio` (Flutter) / `httpx` (后端) |
-| 图表 | `fl_chart` |
-| 后端框架 | FastAPI + Uvicorn |
-| 向量数据库 | ChromaDB |
-| 中文 Embedding | `sentence-transformers` (BAAI/bge-small-zh-v1.5) |
-| 联网搜索 | `ddgs` (DuckDuckGo) |
-| 其他 | `flutter_markdown`, `uuid`, `path_provider`, `shared_preferences`, `file_picker`, `share_plus`, `sse-starlette` |
+
+| 层级           | 技术                                                                                                              |
+| ------------ | --------------------------------------------------------------------------------------------------------------- |
+| 移动端框架        | Flutter (Dart)                                                                                                  |
+| 目标平台         | Android                                                                                                         |
+| 本地数据库        | SQLite via `sqflite`                                                                                            |
+| 状态管理         | `flutter_riverpod` (Riverpod 3.x)                                                                               |
+| LLM          | OpenAI 兼容 API（默认 MiniMax `MiniMax-M2.7`）                                                                        |
+| HTTP 客户端     | `dio` (Flutter) / `httpx` (后端)                                                                                  |
+| 图表           | `fl_chart`                                                                                                      |
+| 后端框架         | FastAPI + Uvicorn                                                                                               |
+| 向量数据库        | ChromaDB                                                                                                        |
+| 中文 Embedding | `sentence-transformers` (BAAI/bge-small-zh-v1.5)                                                                |
+| 联网搜索         | `ddgs` (DuckDuckGo)                                                                                             |
+| 其他           | `flutter_markdown`, `uuid`, `path_provider`, `shared_preferences`, `file_picker`, `share_plus`, `sse-starlette` |
+
 
 ---
 
@@ -122,18 +124,22 @@ App 可**独立运行**（直连 LLM API），也可配合后端获得 RAG 增�
 ## 核心算法
 
 ### QS 记忆质量评分
+
 ```
 QS = 0.35×confidence + 0.25×time_score + 0.30×correctness + 0.10×hesitation_penalty
 ```
+
 映射到 [0, 5]，替代 SM-2 原始评分。
 
 ### SM-2 + IRT 融合
+
 ```
 区间调整因子: f(d) = 1 + 0.3 × tanh(θ - b)
 最终间隔:     I_final = I(n) × f(θ - b)
 ```
 
 ### FSRS 遗忘衰减
+
 ```
 R(t) = (1 + 19/81 × t/S) ^ (-0.5)
 θ_effective = θ_last × R(t)
@@ -162,6 +168,7 @@ flutter build apk --debug
 #### LLM 配置
 
 App 内置默认 MiniMax API Key，开箱即用。如需更换：
+
 - 打开 App → 设置 → LLM 配置
 - 支持任何 OpenAI 兼容格式的 API（如 DeepSeek、OpenAI 等）
 
@@ -199,54 +206,61 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 #### 管理后台
 
 浏览器打开 `http://localhost:8000/admin`，可以：
+
 - 管理本地知识库（添加文本、上传文件、删除文档）
 - 测试 RAG 问答（切换联网搜索 / 本地知识库）
 
 #### 后端 API 概览
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/health` | GET | 健康检查 |
-| `/api/llm/chat` | POST | LLM 对话代理（支持 SSE 流式） |
-| `/api/rag/query` | POST | RAG 问答（联网 + 本地知识库） |
-| `/api/docs/text` | POST | 添加文本到知识库 |
-| `/api/docs/upload` | POST | 上传文件到知识库 |
-| `/api/docs/list` | GET | 列出所有知识库文档 |
-| `/api/docs/{doc_id}` | DELETE | 删除知识库文档 |
-| `/admin` | GET | Web 管理后台 |
+
+| 端点                   | 方法     | 说明                  |
+| -------------------- | ------ | ------------------- |
+| `/api/health`        | GET    | 健康检查                |
+| `/api/llm/chat`      | POST   | LLM 对话代理（支持 SSE 流式） |
+| `/api/rag/query`     | POST   | RAG 问答（联网 + 本地知识库）  |
+| `/api/docs/text`     | POST   | 添加文本到知识库            |
+| `/api/docs/upload`   | POST   | 上传文件到知识库            |
+| `/api/docs/list`     | GET    | 列出所有知识库文档           |
+| `/api/docs/{doc_id}` | DELETE | 删除知识库文档             |
+| `/admin`             | GET    | Web 管理后台            |
+
 
 ---
 
 ## 页面预览
 
-| 页面 | 功能 |
-|------|------|
-| 首页 Dashboard | 渐变头图、待复习数、能力值卡片、学习统计动画、薄弱 TOP3 |
-| 复习答题 | 进度条、计时器、犹豫计数、信心评分（可关闭）、10 题上限 |
-| 答题结果 | 选项回顾（绿/红标注）、解析、底部固定 AI 伴学入口 |
-| 答题结算 | 正确率统计、AI 诊断报告实时生成与查看 |
-| AI 对话 | 流式气泡、Markdown 渲染、thinking 折叠、RAG 增强 |
-| AI 伴学 | 基于当前题目的引导式答疑，支持 RAG 上下文 |
-| 题库管理 | 按知识点分组、难度色条、AI 导入 / 手动添加 |
-| 能力详情 | 有效 θ、衰减曲线（蓝实线+橙虚线预测）、稳定性/半衰期 |
-| 诊断报告 | 答题组报告 / 总报告 Tab、能力评估、薄弱点柱状图 |
-| 知识库管理 | 添加/删除本地知识库文档（需配置后端） |
-| 设置 | 用户画像、LLM 配置、后端配置、自定义 Prompt、信心评分开关 |
+
+| 页面           | 功能                                  |
+| ------------ | ----------------------------------- |
+| 首页 Dashboard | 渐变头图、待复习数、能力值卡片、学习统计动画、薄弱 TOP3      |
+| 复习答题         | 进度条、计时器、犹豫计数、信心评分（可关闭）、10 题上限       |
+| 答题结果         | 选项回顾（绿/红标注）、解析、底部固定 AI 伴学入口         |
+| 答题结算         | 正确率统计、AI 诊断报告实时生成与查看                |
+| AI 对话        | 流式气泡、Markdown 渲染、thinking 折叠、RAG 增强 |
+| AI 伴学        | 基于当前题目的引导式答疑，支持 RAG 上下文             |
+| 题库管理         | 按知识点分组、难度色条、AI 导入 / 手动添加            |
+| 能力详情         | 有效 θ、衰减曲线（蓝实线+橙虚线预测）、稳定性/半衰期        |
+| 诊断报告         | 答题组报告 / 总报告 Tab、能力评估、薄弱点柱状图         |
+| 知识库管理        | 添加/删除本地知识库文档（需配置后端）                 |
+| 设置           | 用户画像、LLM 配置、后端配置、自定义 Prompt、信心评分开关  |
+
 
 ---
 
 ## 与毕设论文对应
 
-| 论文章节 | 项目模块 |
-|----------|----------|
-| 第 1 章 绪论 | 整体项目背景 |
-| 第 2 章 相关技术 | SM-2 / IRT / FSRS 原理、Flutter、LLM、RAG |
-| 第 3 章 需求分析与总体设计 | 架构图、数据流图（前后端分离） |
-| 第 4 章 核心算法设计 | SM2 + IRT + QS + Scheduler + AbilityDecay |
-| 第 5 章 LLM 智能诊断 | Prompt 设计、诊断报告、对话系统、RAG 增强 |
-| 第 6 章 详细设计与实现 | DB Schema、类结构、UI、后端 API |
-| 第 7 章 测试与分析 | 算法验证、对比实验 |
-| 第 8 章 总结与展望 | 创新点归纳 |
+
+| 论文章节            | 项目模块                                      |
+| --------------- | ----------------------------------------- |
+| 第 1 章 绪论        | 整体项目背景                                    |
+| 第 2 章 相关技术      | SM-2 / IRT / FSRS 原理、Flutter、LLM、RAG      |
+| 第 3 章 需求分析与总体设计 | 架构图、数据流图（前后端分离）                           |
+| 第 4 章 核心算法设计    | SM2 + IRT + QS + Scheduler + AbilityDecay |
+| 第 5 章 LLM 智能诊断  | Prompt 设计、诊断报告、对话系统、RAG 增强                |
+| 第 6 章 详细设计与实现   | DB Schema、类结构、UI、后端 API                   |
+| 第 7 章 测试与分析     | 算法验证、对比实验                                 |
+| 第 8 章 总结与展望     | 创新点归纳                                     |
+
 
 ---
 

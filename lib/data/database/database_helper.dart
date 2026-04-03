@@ -22,7 +22,18 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     final path = join(await getDatabasesPath(), 'memory_system.db');
-    return openDatabase(path, version: 1, onCreate: _onCreate);
+    return openDatabase(path, version: 2, onCreate: _onCreate, onUpgrade: _onUpgrade);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute("ALTER TABLE user_profile ADD COLUMN ability_level TEXT DEFAULT ''");
+      await db.execute("ALTER TABLE user_profile ADD COLUMN strengths_json TEXT DEFAULT '[]'");
+      await db.execute("ALTER TABLE user_profile ADD COLUMN weak_areas_json TEXT DEFAULT '[]'");
+      await db.execute("ALTER TABLE user_profile ADD COLUMN suggested_focus_json TEXT DEFAULT '[]'");
+      await db.execute("ALTER TABLE user_profile ADD COLUMN learning_trend TEXT DEFAULT '未知'");
+      await db.execute("ALTER TABLE user_profile ADD COLUMN last_profile_update TEXT");
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -103,7 +114,13 @@ class DatabaseHelper {
         total_correct INTEGER DEFAULT 0,
         last_study_date TEXT,
         grade TEXT DEFAULT '',
-        subject_preference TEXT DEFAULT ''
+        subject_preference TEXT DEFAULT '',
+        ability_level TEXT DEFAULT '',
+        strengths_json TEXT DEFAULT '[]',
+        weak_areas_json TEXT DEFAULT '[]',
+        suggested_focus_json TEXT DEFAULT '[]',
+        learning_trend TEXT DEFAULT '未知',
+        last_profile_update TEXT
       )
     ''');
 
@@ -482,6 +499,13 @@ class DatabaseHelper {
   Future<List<DiagnosticReport>> getAllReports() async {
     final db = await database;
     final maps = await db.query('diagnostic_reports', orderBy: 'generated_at DESC');
+    return maps.map(DiagnosticReport.fromDbMap).toList();
+  }
+
+  Future<List<DiagnosticReport>> getRecentReports({int limit = 3}) async {
+    final db = await database;
+    final maps = await db.query('diagnostic_reports',
+        orderBy: 'generated_at DESC', limit: limit);
     return maps.map(DiagnosticReport.fromDbMap).toList();
   }
 

@@ -74,12 +74,14 @@ class ChatNotifier extends Notifier<ChatState> {
 
     if (profile != null) {
       final weakPoints = await db.getWeakKnowledgePoints();
+      final recentReports = await db.getRecentReports(limit: 3);
       final sp = PromptBuilder.buildChatSystemPrompt(
         profile,
         ref.read(llmSettingsProvider).customSystemPrompt.isEmpty
             ? null
             : ref.read(llmSettingsProvider).customSystemPrompt,
         weakPoints: weakPoints,
+        recentReports: recentReports,
       );
       _service!.customSystemPrompt = sp;
     }

@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/answer_log.dart';
 import '../../data/models/question.dart';
 import '../../llm/llm_client.dart';
+import '../../llm/prompts/prompt_builder.dart';
+import '../../providers/database_provider.dart';
 import '../../providers/llm_provider.dart';
+import '../../providers/user_profile_provider.dart';
 
 class GuidanceChatPage extends ConsumerStatefulWidget {
   const GuidanceChatPage({
@@ -118,9 +121,18 @@ class _GuidanceChatPageState extends ConsumerState<GuidanceChatPage>
         setState(() => _streamingContent = contentBuf.toString());
       } else {
         final client = ref.read(llmClientProvider);
+        final profile = ref.read(userProfileProvider).value;
+        String sysPrompt = '你是一位耐心的学习辅导老师。请用简明清晰的方式讲解题目，帮助学生理解知识点。';
+        if (profile != null) {
+          final db = ref.read(databaseProvider);
+          final recentReports = await db.getRecentReports(limit: 3);
+          final ctx = PromptBuilder.buildProfileContext(profile,
+              recentReports: recentReports);
+          sysPrompt = '$ctx\n\n$sysPrompt';
+        }
         await for (final chunk in client.chatStream(
           messages,
-          systemPrompt: '你是一位耐心的学习辅导老师。请用简明清晰的方式讲解题目，帮助学生理解知识点。',
+          systemPrompt: sysPrompt,
         )) {
           if (chunk.content.isNotEmpty) {
             contentBuf.write(chunk.content);

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/answer_log.dart';
 import '../data/models/question.dart';
@@ -69,8 +71,12 @@ class DiagnosisNotifier extends Notifier<DiagnosisState> {
       if (profile == null) return;
 
       final weakPoints = await db.getWeakKnowledgePoints();
-      final profileCtx =
-          PromptBuilder.buildDiagnosisContext(profile, weakPoints: weakPoints);
+      final recentReports = await db.getRecentReports(limit: 3);
+      final profileCtx = PromptBuilder.buildDiagnosisContext(
+        profile,
+        weakPoints: weakPoints,
+        recentReports: recentReports,
+      );
 
       final questionDetails = logs.map((l) {
         final q = questions.firstWhere((q) => q.id == l.questionId);
@@ -101,6 +107,8 @@ class DiagnosisNotifier extends Notifier<DiagnosisState> {
         reports: [...state.reports, report],
         latestReport: report,
       );
+
+      await _updateProfileFromReport(report);
     } catch (e) {
       state = state.copyWith(
         isGenerating: false,
@@ -121,8 +129,12 @@ class DiagnosisNotifier extends Notifier<DiagnosisState> {
       if (profile == null) return;
 
       final weakPoints = await db.getWeakKnowledgePoints();
-      final profileCtx =
-          PromptBuilder.buildDiagnosisContext(profile, weakPoints: weakPoints);
+      final recentReports = await db.getRecentReports(limit: 3);
+      final profileCtx = PromptBuilder.buildDiagnosisContext(
+        profile,
+        weakPoints: weakPoints,
+        recentReports: recentReports,
+      );
 
       final sessions = await db.getAllSessions();
       final kpMastery = await db.getWeakKnowledgePoints();
@@ -145,12 +157,62 @@ class DiagnosisNotifier extends Notifier<DiagnosisState> {
         reports: [...state.reports, report],
         latestReport: report,
       );
+
+      await _updateProfileFromReport(report);
     } catch (e) {
       state = state.copyWith(
         isGenerating: false,
         error: '总报告生成失败：$e',
       );
     }
+  }
+
+  Future<void> _updateProfileFromReport(DiagnosticReport report) async {
+    final data = report.reportData;
+    if (data == null) return;
+
+    final abilityLevel = data['abilityLevel'] as String? ?? '';
+    final strengths = data['strengths'] as List? ?? [];
+    final weakAreas = data['weakAreas'] as List? ?? [];
+    final suggestedFocus = data['suggestedFocus'] as List? ?? [];
+
+    final trend = await _computeLearningTrend();
+
+    try {
+      await ref.read(userProfileProvider.notifier).updateFromReport(
+            abilityLevel: abilityLevel,
+            strengthsJson: jsonEncode(strengths),
+            weakAreasJson: jsonEncode(weakAreas),
+            suggestedFocusJson: jsonEncode(suggestedFocus),
+            learningTrend: trend,
+          );
+    } catch (_) {
+      // non-critical: don't fail the report flow
+    }
+  }
+
+  Future<String> _computeLearningTrend() async {
+    final db = ref.read(databaseProvider);
+    final recent = await db.getRecentReports(limit: 5);
+    if (recent.length < 2) return '未知';
+
+    final scores = recent
+        .where((r) => r.reportData != null && r.reportData!['overallScore'] != null)
+        .map((r) => (r.reportData!['overallScore'] as num).toDouble())
+        .toList();
+
+    if (scores.length < 2) return '未知';
+
+    // scores[0] is newest, scores[last] is oldest
+    final oldHalf = scores.sublist(scores.length ~/ 2);
+    final newHalf = scores.sublist(0, scores.length ~/ 2);
+    final oldAvg = oldHalf.reduce((a, b) => a + b) / oldHalf.length;
+    final newAvg = newHalf.reduce((a, b) => a + b) / newHalf.length;
+    final diff = newAvg - oldAvg;
+
+    if (diff > 5) return '上升';
+    if (diff < -5) return '下降';
+    return '平稳';
   }
 
   void clearLatestReport() {
