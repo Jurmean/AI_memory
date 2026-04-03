@@ -79,7 +79,7 @@ class LLMClient {
   }
 
   Future<String> chat(List<Map<String, dynamic>> messages,
-      {String? systemPrompt}) async {
+      {String? systemPrompt, int maxRetries = 3}) async {
     final separated = _separateSystemMessages(messages, systemPrompt);
     final body = <String, dynamic>{
       'model': model,
@@ -91,20 +91,38 @@ class LLMClient {
       'stream': false,
     };
 
-    try {
-      final response = await _dio.post(
-        baseUrl,
-        data: jsonEncode(body),
-        options: Options(headers: _buildHeaders()),
-      );
-      final data = response.data is String
-          ? jsonDecode(response.data as String)
-          : response.data;
-      final content = _extractContent(data);
-      return _stripThinkingTags(content);
-    } on DioException catch (e) {
-      _handleDioError(e);
+    LLMException? lastError;
+    for (var attempt = 0; attempt <= maxRetries; attempt++) {
+      if (attempt > 0) {
+        await Future.delayed(Duration(seconds: 2 * attempt));
+      }
+      try {
+        final response = await _dio.post(
+          baseUrl,
+          data: jsonEncode(body),
+          options: Options(headers: _buildHeaders()),
+        );
+        final data = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        final content = _extractContent(data);
+        return _stripThinkingTags(content);
+      } on DioException catch (e) {
+        final code = e.response?.statusCode;
+        final retriable = (code != null && code >= 500) ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.connectionTimeout;
+        if (retriable && attempt < maxRetries) {
+          lastError = LLMException(
+            e.response?.data?.toString() ?? e.message ?? '网络请求失败',
+            statusCode: code,
+          );
+          continue;
+        }
+        _handleDioError(e);
+      }
     }
+    throw lastError ?? const LLMException('请求失败（已重试）');
   }
 
   Stream<StreamChunk> chatStream(List<Map<String, dynamic>> messages,

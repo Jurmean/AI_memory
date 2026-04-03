@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/chat_message.dart';
+import '../llm/backend_client.dart';
 import '../llm/llm_client.dart';
 import '../llm/services/chat_service.dart';
 import '../llm/prompts/prompt_builder.dart';
@@ -108,20 +109,31 @@ class ChatNotifier extends Notifier<ChatState> {
 
     try {
       if (backend != null) {
-        final result = await backend.ragQuery(question: text);
-        final raw = (result['answer'] ?? '') as String;
-        final parsed = _extractThinking(raw);
-        contentBuf.write(parsed.content);
-        if (parsed.thinking.isNotEmpty) {
-          thinkBuf.write(parsed.thinking);
-          state = state.copyWith(thinkingContent: thinkBuf.toString());
+        List<Map<String, dynamic>>? ragSources;
+        final rawBuf = StringBuffer();
+
+        await for (final event in backend.ragQueryStream(question: text)) {
+          if (event.type == RagStreamEventType.sources) {
+            ragSources = event.sources;
+          } else if (event.type == RagStreamEventType.delta) {
+            rawBuf.write(event.content ?? '');
+            final parsed = _extractThinking(rawBuf.toString());
+            contentBuf.clear();
+            contentBuf.write(parsed.content);
+            if (parsed.thinking.isNotEmpty) {
+              state = state.copyWith(
+                streamingContent: contentBuf.toString(),
+                thinkingContent: parsed.thinking,
+              );
+            } else {
+              state = state.copyWith(streamingContent: contentBuf.toString());
+            }
+          }
         }
 
-        final sources = result['sources'] as List?;
-        if (sources != null && sources.isNotEmpty) {
+        if (ragSources != null && ragSources.isNotEmpty) {
           contentBuf.write('\n\n---\n**参考来源：**\n');
-          for (final src in sources) {
-            final s = src as Map<String, dynamic>;
+          for (final s in ragSources) {
             final title = s['title'] ?? '';
             final url = s['url'];
             final type = s['source_type'] == 'local' ? '📚 本地' : '🌐 网络';
@@ -131,8 +143,8 @@ class ChatNotifier extends Notifier<ChatState> {
               contentBuf.write('- $type $title\n');
             }
           }
+          state = state.copyWith(streamingContent: contentBuf.toString());
         }
-        state = state.copyWith(streamingContent: contentBuf.toString());
       } else {
         // No backend → direct LLM streaming
         await for (final chunk in _service!.sendMessageStream(text)) {

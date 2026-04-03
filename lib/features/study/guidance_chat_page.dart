@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/answer_log.dart';
 import '../../data/models/question.dart';
+import '../../llm/backend_client.dart';
 import '../../llm/llm_client.dart';
 import '../../llm/prompts/prompt_builder.dart';
 import '../../providers/database_provider.dart';
@@ -107,18 +108,27 @@ class _GuidanceChatPageState extends ConsumerState<GuidanceChatPage>
     try {
       if (backend != null) {
         final lastMsg = messages.last['content'] as String? ?? '';
-        final result = await backend.ragQuery(
+        final rawBuf = StringBuffer();
+
+        await for (final event in backend.ragQueryStream(
           question: lastMsg,
           context: '学习辅导场景',
-        );
-        final raw = (result['answer'] ?? '') as String;
-        final parsed = _extractThinking(raw);
-        contentBuf.write(parsed.content);
-        if (parsed.thinking.isNotEmpty) {
-          thinkBuf.write(parsed.thinking);
-          setState(() => _thinkingContent = thinkBuf.toString());
+        )) {
+          if (event.type == RagStreamEventType.delta) {
+            rawBuf.write(event.content ?? '');
+            final parsed = _extractThinking(rawBuf.toString());
+            contentBuf.clear();
+            contentBuf.write(parsed.content);
+            if (parsed.thinking.isNotEmpty) {
+              setState(() {
+                _streamingContent = contentBuf.toString();
+                _thinkingContent = parsed.thinking;
+              });
+            } else {
+              setState(() => _streamingContent = contentBuf.toString());
+            }
+          }
         }
-        setState(() => _streamingContent = contentBuf.toString());
       } else {
         final client = ref.read(llmClientProvider);
         final profile = ref.read(userProfileProvider).value;

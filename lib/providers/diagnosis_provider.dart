@@ -88,7 +88,8 @@ class DiagnosisNotifier extends Notifier<DiagnosisState> {
         };
       }).toList();
 
-      final service = DiagnosisService(client);
+      final backend = ref.read(backendClientProvider);
+      final service = DiagnosisService(client, backend: backend);
       final report = await service.generateSessionReport(
         sessionId: sessionId,
         profileContext: profileCtx,
@@ -139,7 +140,8 @@ class DiagnosisNotifier extends Notifier<DiagnosisState> {
       final sessions = await db.getAllSessions();
       final kpMastery = await db.getWeakKnowledgePoints();
 
-      final service = DiagnosisService(client);
+      final backend = ref.read(backendClientProvider);
+      final service = DiagnosisService(client, backend: backend);
       final report = await service.generateOverallReport(
         profileContext: profileCtx,
         totalSessions: sessions.length,

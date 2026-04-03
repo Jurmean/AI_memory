@@ -1,12 +1,24 @@
 import 'dart:convert';
 import '../../data/models/diagnostic_report.dart';
 import '../llm_client.dart';
+import '../backend_client.dart';
 import '../prompts/diagnosis_prompt.dart';
 
 class DiagnosisService {
   final LLMClient client;
+  final BackendClient? backend;
 
-  const DiagnosisService(this.client);
+  const DiagnosisService(this.client, {this.backend});
+
+  Future<String> _chat(String prompt) async {
+    final messages = [
+      {'role': 'user', 'content': prompt}
+    ];
+    if (backend != null) {
+      return backend!.chat(messages);
+    }
+    return client.chat(messages);
+  }
 
   Future<DiagnosticReport> generateSessionReport({
     required int sessionId,
@@ -26,10 +38,7 @@ class DiagnosisService {
       customPrompt: customPrompt,
     );
 
-    final response = await client.chat([
-      {'role': 'user', 'content': prompt}
-    ]);
-
+    final response = await _chat(prompt);
     return _parseReport(response, sessionId, 'session');
   }
 
@@ -50,10 +59,7 @@ class DiagnosisService {
       customPrompt: customPrompt,
     );
 
-    final response = await client.chat([
-      {'role': 'user', 'content': prompt}
-    ]);
-
+    final response = await _chat(prompt);
     return _parseReport(response, 0, 'overall');
   }
 
